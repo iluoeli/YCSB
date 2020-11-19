@@ -30,6 +30,7 @@ import java.nio.file.*;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -44,6 +45,8 @@ public class RocksDBClient extends DB {
 
   static final String PROPERTY_ROCKSDB_DIR = "rocksdb.dir";
   static final String PROPERTY_ROCKSDB_OPTIONS_FILE = "rocksdb.optionsfile";
+  // rocksdb.statslevel should be in {0, 1, 2}.
+  static final String PROPERTY_ROCKSDB_STATS_LEVEL= "rocksdb.statslevel";
   private static final String COLUMN_FAMILY_NAMES_FILENAME = "CF_NAMES";
 
   private static final Logger LOGGER = LoggerFactory.getLogger(RocksDBClient.class);
@@ -56,6 +59,8 @@ public class RocksDBClient extends DB {
 
   private static final ConcurrentMap<String, ColumnFamily> COLUMN_FAMILIES = new ConcurrentHashMap<>();
   private static final ConcurrentMap<String, Lock> COLUMN_FAMILY_LOCKS = new ConcurrentHashMap<>();
+
+  private static Statistics stats;
 
   @Override
   public void init() throws DBException {
@@ -85,6 +90,34 @@ public class RocksDBClient extends DB {
     }
   }
 
+  public void setStatsLevel(DBOptions options) {
+    String statsLevel = getProperties().getProperty(PROPERTY_ROCKSDB_STATS_LEVEL);
+    if (statsLevel != null) {
+      LOGGER.info("RocksDB stats level: " + statsLevel);
+      synchronized (RocksDBClient.class) {
+        if (stats == null) {
+          stats = new Statistics();
+        }
+      }
+      stats.setStatsLevel(StatsLevel.getStatsLevel(Byte.parseByte(statsLevel)));
+      options.setStatistics(stats);
+    }
+  }
+
+  public void setStatsLevel(Options options) {
+    String statsLevel = getProperties().getProperty(PROPERTY_ROCKSDB_STATS_LEVEL);
+    if (statsLevel != null) {
+      LOGGER.info("RocksDB stats level: " + statsLevel);
+      synchronized (RocksDBClient.class) {
+        if (stats == null) {
+          stats = new Statistics();
+        }
+      }
+      stats.setStatsLevel(StatsLevel.getStatsLevel(Byte.parseByte(statsLevel)));
+      options.setStatistics(stats);;
+    }
+  }
+
   /**
    * Initializes and opens the RocksDB database.
    *
@@ -104,6 +137,7 @@ public class RocksDBClient extends DB {
     RocksDB.loadLibrary();
     OptionsUtil.loadOptionsFromFile(optionsFile.toAbsolutePath().toString(), Env.getDefault(), options, cfDescriptors);
     dbOptions = options;
+    setStatsLevel(options);
 
     final RocksDB db = RocksDB.open(options, rocksDbDir.toAbsolutePath().toString(), cfDescriptors, cfHandles);
 
@@ -156,6 +190,7 @@ public class RocksDBClient extends DB {
           .setMaxBackgroundCompactions(rocksThreads)
           .setInfoLogLevel(InfoLogLevel.INFO_LEVEL);
       dbOptions = options;
+      setStatsLevel(options);
       return RocksDB.open(options, rocksDbDir.toAbsolutePath().toString());
     } else {
       final DBOptions options = new DBOptions()
@@ -165,6 +200,7 @@ public class RocksDBClient extends DB {
           .setMaxBackgroundCompactions(rocksThreads)
           .setInfoLogLevel(InfoLogLevel.INFO_LEVEL);
       dbOptions = options;
+      setStatsLevel(options);
 
       final List<ColumnFamilyHandle> cfHandles = new ArrayList<>();
       final RocksDB db = RocksDB.open(options, rocksDbDir.toAbsolutePath().toString(), cfDescriptors, cfHandles);
@@ -182,6 +218,8 @@ public class RocksDBClient extends DB {
     synchronized (RocksDBClient.class) {
       try {
         if (references == 1) {
+          LOGGER.error("references" + "=" + references);
+          LOGGER.error("STATS:\n" + stats.toString());
           for (final ColumnFamily cf : COLUMN_FAMILIES.values()) {
             cf.getHandle().close();
           }

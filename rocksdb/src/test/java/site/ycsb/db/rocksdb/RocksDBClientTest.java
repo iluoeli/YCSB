@@ -57,6 +57,7 @@ public class RocksDBClientTest {
 
     final Properties properties = new Properties();
     properties.setProperty(RocksDBClient.PROPERTY_ROCKSDB_DIR, tmpFolder.getRoot().getAbsolutePath());
+    properties.setProperty(RocksDBClient.PROPERTY_ROCKSDB_STATS_LEVEL, "0");
     instance.setProperties(properties);
 
     instance.init();
