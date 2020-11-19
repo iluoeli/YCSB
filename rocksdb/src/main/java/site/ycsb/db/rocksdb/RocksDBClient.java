@@ -30,7 +30,6 @@ import java.nio.file.*;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -114,7 +113,7 @@ public class RocksDBClient extends DB {
         }
       }
       stats.setStatsLevel(StatsLevel.getStatsLevel(Byte.parseByte(statsLevel)));
-      options.setStatistics(stats);;
+      options.setStatistics(stats);
     }
   }
 
