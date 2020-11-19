@@ -217,8 +217,8 @@ public class RocksDBClient extends DB {
     synchronized (RocksDBClient.class) {
       try {
         if (references == 1) {
-          LOGGER.error("references" + "=" + references);
-          LOGGER.error("STATS:\n" + stats.toString());
+          System.out.println("references" + "=" + references);
+          System.out.println("STATS:\n" + stats.toString());
           for (final ColumnFamily cf : COLUMN_FAMILIES.values()) {
             cf.getHandle().close();
           }
